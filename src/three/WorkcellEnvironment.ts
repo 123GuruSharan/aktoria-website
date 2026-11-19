@@ -9,6 +9,19 @@ export class WorkcellEnvironment {
   public motionPathGroup: THREE.Group;
   private pathLine: THREE.Line;
 
+  // Target zone highlight materials
+  private targetBorderMat: THREE.LineBasicMaterial;
+  private targetFillMesh: THREE.Mesh;
+
+  // Workpiece material
+  private pieceMat: THREE.MeshStandardMaterial;
+
+  // Dynamic Live Gripper Trajectory Line
+  public liveTrajectoryLine: THREE.Line;
+  private trajectoryPoints: THREE.Vector3[] = [];
+  private maxTrajectoryPoints = 120;
+  private trajectoryGeometry: THREE.BufferGeometry;
+
   // Workpiece Coordinates
   public readonly initialPiecePos = new THREE.Vector3(0.18, 0.44, 0.22);
   public readonly targetDropPos = new THREE.Vector3(-0.18, 0.44, 0.22);
@@ -17,14 +30,14 @@ export class WorkcellEnvironment {
     this.group = new THREE.Group();
     this.group.name = 'WorkcellEnvironment';
 
-    // 1. Floor Grid (Millimeter Precision Matrix)
-    this.floorGrid = new THREE.GridHelper(3.0, 30, 0xff5000, 0x2a2f37);
+    // 1. Floor Grid (Restrained Millimeter Precision Matrix)
+    this.floorGrid = new THREE.GridHelper(3.0, 30, 0xff5000, 0x22262c);
     this.floorGrid.position.y = 0;
     this.group.add(this.floorGrid);
 
-    // Subtle dark floor plane for catching shadows
+    // Subtle dark floor plane for catching soft contact shadows
     const floorGeo = new THREE.PlaneGeometry(6, 6);
-    const floorMat = new THREE.ShadowMaterial({ opacity: 0.35 });
+    const floorMat = new THREE.ShadowMaterial({ opacity: 0.4 });
     const floorMesh = new THREE.Mesh(floorGeo, floorMat);
     floorMesh.rotation.x = -Math.PI / 2;
     floorMesh.receiveShadow = true;
@@ -90,16 +103,16 @@ export class WorkcellEnvironment {
       this.tableGroup.add(inner);
     });
 
-    // 3. The Workpiece (Machined Test Cylinder)
+    // 3. The Workpiece (One Authentic Signal Orange Machined Cylinder)
     const pieceGeo = new THREE.CylinderGeometry(0.022, 0.022, 0.065, 32);
-    const pieceMat = new THREE.MeshStandardMaterial({
-      color: 0x00e5ff, // High-contrast cyan anodized finish
-      roughness: 0.2,
-      metalness: 0.8,
-      emissive: 0x003344,
-      emissiveIntensity: 0.3,
+    this.pieceMat = new THREE.MeshStandardMaterial({
+      color: 0xff5000, // Signal Orange workpiece per requirement
+      roughness: 0.25,
+      metalness: 0.4,
+      emissive: 0x331100,
+      emissiveIntensity: 0.2,
     });
-    this.workpieceMesh = new THREE.Mesh(pieceGeo, pieceMat);
+    this.workpieceMesh = new THREE.Mesh(pieceGeo, this.pieceMat);
     this.workpieceMesh.position.copy(this.initialPiecePos);
     this.workpieceMesh.castShadow = true;
     this.workpieceMesh.receiveShadow = true;
@@ -107,23 +120,32 @@ export class WorkcellEnvironment {
 
     // Initial Pick Origin Marker Ring
     const pickRing = new THREE.Mesh(
-      new THREE.RingGeometry(0.025, 0.03, 32),
-      new THREE.MeshBasicMaterial({ color: 0x00e5ff, side: THREE.DoubleSide })
+      new THREE.RingGeometry(0.026, 0.032, 32),
+      new THREE.MeshBasicMaterial({ color: 0xff5000, side: THREE.DoubleSide })
     );
     pickRing.rotation.x = -Math.PI / 2;
     pickRing.position.set(this.initialPiecePos.x, 0.406, this.initialPiecePos.z);
     this.group.add(pickRing);
 
-    // 4. Target Destination Placement Zone (Marked Inspection Box)
+    // 4. Target Destination Placement Zone (Clearly Outlined Placement Target)
     this.targetZoneGroup = new THREE.Group();
     this.targetZoneGroup.position.copy(this.targetDropPos);
     this.targetZoneGroup.position.y = 0.406;
     this.group.add(this.targetZoneGroup);
 
+    // Target fill surface (illuminates on highlight)
+    this.targetFillMesh = new THREE.Mesh(
+      new THREE.PlaneGeometry(0.08, 0.08),
+      new THREE.MeshBasicMaterial({ color: 0xff5000, transparent: true, opacity: 0.1 })
+    );
+    this.targetFillMesh.rotation.x = -Math.PI / 2;
+    this.targetZoneGroup.add(this.targetFillMesh);
+
     // Square boundary outline
+    this.targetBorderMat = new THREE.LineBasicMaterial({ color: 0xff5000, linewidth: 2 });
     const targetBorder = new THREE.LineSegments(
       new THREE.EdgesGeometry(new THREE.PlaneGeometry(0.08, 0.08)),
-      new THREE.LineBasicMaterial({ color: 0xff5000, linewidth: 2 })
+      this.targetBorderMat
     );
     targetBorder.rotation.x = -Math.PI / 2;
     this.targetZoneGroup.add(targetBorder);
@@ -162,15 +184,98 @@ export class WorkcellEnvironment {
 
     // Waypoint dots along the curve
     [points[0], points[20], points[40]].forEach((pt) => {
-      const dot = new THREE.Mesh(new THREE.SphereGeometry(0.006, 16, 16), new THREE.MeshBasicMaterial({ color: 0xff5000 }));
+      const dot = new THREE.Mesh(
+        new THREE.SphereGeometry(0.006, 16, 16),
+        new THREE.MeshBasicMaterial({ color: 0xff5000 })
+      );
       dot.position.copy(pt);
       this.motionPathGroup.add(dot);
     });
+
+    // 6. Dynamic Live Gripper Trajectory Ribbon
+    const posBuffer = new Float32Array(this.maxTrajectoryPoints * 3);
+    this.trajectoryGeometry = new THREE.BufferGeometry();
+    this.trajectoryGeometry.setAttribute('position', new THREE.BufferAttribute(posBuffer, 3));
+    this.trajectoryGeometry.setDrawRange(0, 0);
+
+    const liveMat = new THREE.LineBasicMaterial({
+      color: 0xff5000,
+      linewidth: 2,
+      transparent: true,
+      opacity: 0.9,
+    });
+    this.liveTrajectoryLine = new THREE.Line(this.trajectoryGeometry, liveMat);
+    this.group.add(this.liveTrajectoryLine);
+  }
+
+  /**
+   * Append a point to the live dynamic trajectory line
+   */
+  public addTrajectoryPoint(point: THREE.Vector3) {
+    if (this.trajectoryPoints.length > 0) {
+      const last = this.trajectoryPoints[this.trajectoryPoints.length - 1];
+      if (last.distanceTo(point) < 0.005) return; // Ignore micro-jitters
+    }
+
+    if (this.trajectoryPoints.length >= this.maxTrajectoryPoints) {
+      this.trajectoryPoints.shift();
+    }
+    this.trajectoryPoints.push(point.clone());
+
+    const positions = this.trajectoryGeometry.attributes.position.array as Float32Array;
+    for (let i = 0; i < this.trajectoryPoints.length; i++) {
+      positions[i * 3] = this.trajectoryPoints[i].x;
+      positions[i * 3 + 1] = this.trajectoryPoints[i].y;
+      positions[i * 3 + 2] = this.trajectoryPoints[i].z;
+    }
+    this.trajectoryGeometry.attributes.position.needsUpdate = true;
+    this.trajectoryGeometry.setDrawRange(0, this.trajectoryPoints.length);
+  }
+
+  public clearTrajectory() {
+    this.trajectoryPoints = [];
+    this.trajectoryGeometry.setDrawRange(0, 0);
+  }
+
+  public getTrajectoryPoints(): THREE.Vector3[] {
+    return [...this.trajectoryPoints];
+  }
+
+  public setWorkpieceHighlighted(highlighted: boolean) {
+    this.pieceMat.emissive.setHex(highlighted ? 0xff5000 : 0x331100);
+    this.pieceMat.emissiveIntensity = highlighted ? 0.7 : 0.2;
+    this.workpieceMesh.scale.setScalar(highlighted ? 1.08 : 1.0);
+  }
+
+  public setTargetHighlighted(highlighted: boolean) {
+    (this.targetFillMesh.material as THREE.MeshBasicMaterial).opacity = highlighted ? 0.4 : 0.1;
+    this.targetBorderMat.color.setHex(highlighted ? 0xffffff : 0xff5000);
+    this.targetZoneGroup.scale.setScalar(highlighted ? 1.15 : 1.0);
+  }
+
+  public triggerPlacementPulse() {
+    const origScale = 1.0;
+    let frame = 0;
+    const pulseAnim = () => {
+      frame++;
+      const s = 1.0 + 0.3 * Math.sin((frame / 20) * Math.PI);
+      this.targetZoneGroup.scale.setScalar(s);
+      if (frame < 20) {
+        requestAnimationFrame(pulseAnim);
+      } else {
+        this.targetZoneGroup.scale.setScalar(origScale);
+        this.setTargetHighlighted(false);
+      }
+    };
+    pulseAnim();
   }
 
   public resetWorkpiece() {
     this.workpieceMesh.position.copy(this.initialPiecePos);
     this.workpieceMesh.rotation.set(0, 0, 0);
+    this.setWorkpieceHighlighted(false);
+    this.setTargetHighlighted(false);
+    this.clearTrajectory();
   }
 
   public setGridVisible(visible: boolean) {
@@ -181,4 +286,3 @@ export class WorkcellEnvironment {
     this.motionPathGroup.visible = visible;
   }
 }
-

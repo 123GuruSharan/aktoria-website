@@ -26,6 +26,7 @@ export interface AppState {
     hasMoved: boolean;
     trace: Point2D[];
   };
+  exploreViewActive: boolean;
   task: {
     mode: TaskMode;
     step: TaskStep;
@@ -33,6 +34,7 @@ export interface AppState {
     clamped: boolean;
     pieceMoved: boolean;
     completed: boolean;
+    isPaused: boolean;
     gripperPos: { x: number; y: number; z: number };
     recordedPath: Array<{ x: number; y: number; z: number }>;
   };
@@ -43,6 +45,7 @@ class Store {
     currentScene: 'scene-01',
     selectedRoute: 'mexico',
     selectedCamera: 'operator',
+    exploreViewActive: false,
     layers: {
       labels: true,
       grid: true,
@@ -64,6 +67,7 @@ class Store {
       clamped: false,
       pieceMoved: false,
       completed: false,
+      isPaused: false,
       gripperPos: { x: 0, y: 1.2, z: 0.3 },
       recordedPath: [],
     },

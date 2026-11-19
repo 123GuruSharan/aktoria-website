@@ -6,10 +6,17 @@ export class Scene05Task {
   private workcellScene: WorkcellScene;
   private btnModeAuto: HTMLElement | null = null;
   private btnModeManual: HTMLElement | null = null;
+  private btnPause: HTMLElement | null = null;
+  private taskPauseLabel: HTMLElement | null = null;
   private btnReset: HTMLElement | null = null;
   private btnReplay: HTMLElement | null = null;
 
-  // Manual Step Action Buttons
+  // Direct manual action buttons
+  private btnLower: HTMLButtonElement | null = null;
+  private btnRaise: HTMLButtonElement | null = null;
+  private btnGrip: HTMLButtonElement | null = null;
+
+  // Step Action Buttons
   private btnAlign: HTMLButtonElement | null = null;
   private btnPinch: HTMLButtonElement | null = null;
   private btnMove: HTMLButtonElement | null = null;
@@ -25,8 +32,14 @@ export class Scene05Task {
 
     this.btnModeAuto = document.getElementById('btn-mode-auto');
     this.btnModeManual = document.getElementById('btn-mode-manual');
+    this.btnPause = document.getElementById('btn-task-pause');
+    this.taskPauseLabel = document.getElementById('task-pause-label');
     this.btnReset = document.getElementById('btn-task-reset');
     this.btnReplay = document.getElementById('btn-task-replay');
+
+    this.btnLower = document.getElementById('btn-task-lower') as HTMLButtonElement | null;
+    this.btnRaise = document.getElementById('btn-task-raise') as HTMLButtonElement | null;
+    this.btnGrip = document.getElementById('btn-task-grip') as HTMLButtonElement | null;
 
     this.btnAlign = document.getElementById('btn-task-align') as HTMLButtonElement | null;
     this.btnPinch = document.getElementById('btn-task-pinch') as HTMLButtonElement | null;
@@ -42,6 +55,7 @@ export class Scene05Task {
   }
 
   private bindEvents() {
+    // Mode Switching
     this.btnModeAuto?.addEventListener('click', () => {
       this.setMode('auto');
       this.playAutoDemo();
@@ -52,6 +66,16 @@ export class Scene05Task {
       this.resetTask();
     });
 
+    // Pause / Resume for Automatic Demo
+    this.btnPause?.addEventListener('click', () => {
+      const isPaused = this.workcellScene.togglePauseDemo();
+      if (this.taskPauseLabel) {
+        this.taskPauseLabel.textContent = isPaused ? i18n.t('task.resume') : i18n.t('task.pause');
+      }
+      this.btnPause?.classList.toggle('active', isPaused);
+    });
+
+    // Reset & Replay
     this.btnReset?.addEventListener('click', () => {
       this.resetTask();
     });
@@ -60,22 +84,79 @@ export class Scene05Task {
       this.playAutoDemo();
     });
 
-    // Manual Step Actions (Tap-to-select and Tap-to-place)
-    this.btnAlign?.addEventListener('click', () => {
-      this.onManualAlign();
+    // Direct Manual Action Buttons (Lower, Raise, Grip/Release)
+    this.btnLower?.addEventListener('click', () => {
+      this.workcellScene.manualLower();
     });
 
-    this.btnPinch?.addEventListener('click', () => {
-      this.onManualPinch();
+    this.btnRaise?.addEventListener('click', () => {
+      this.workcellScene.manualRaise();
     });
 
-    this.btnMove?.addEventListener('click', () => {
-      this.onManualMove();
+    this.btnGrip?.addEventListener('click', () => {
+      const result = this.workcellScene.manualToggleGrip();
+      if (result === 'placed') {
+        this.onTaskCompleted();
+      } else if (result === 'grasped') {
+        if (this.manualHintText) {
+          this.manualHintText.textContent = i18n.t('task.manualHint3');
+        }
+      } else if (result === 'dropped_recoverable') {
+        if (this.manualHintText) {
+          this.manualHintText.textContent = i18n.t('task.misplaced');
+        }
+      }
     });
 
-    this.btnRelease?.addEventListener('click', () => {
-      this.onManualRelease();
+    // Step-by-Step Buttons (for backwards-compatibility and guidance)
+    this.btnAlign?.addEventListener('click', () => this.onManualAlign());
+    this.btnPinch?.addEventListener('click', () => this.onManualPinch());
+    this.btnMove?.addEventListener('click', () => this.onManualMove());
+    this.btnRelease?.addEventListener('click', () => this.onManualRelease());
+
+    // Keyboard Navigation for Simulation Controls
+    window.addEventListener('keydown', (e) => {
+      // Only process when in manual mode or canvas/dock focused
+      if (store.getState().task.mode !== 'manual') return;
+
+      const stepSize = 0.02;
+      if (e.key === 'ArrowLeft') {
+        e.preventDefault();
+        this.workcellScene.manualMovePlanar(-stepSize, 0);
+      } else if (e.key === 'ArrowRight') {
+        e.preventDefault();
+        this.workcellScene.manualMovePlanar(stepSize, 0);
+      } else if (e.key === 'ArrowUp') {
+        e.preventDefault();
+        this.workcellScene.manualMovePlanar(0, -stepSize);
+      } else if (e.key === 'ArrowDown') {
+        e.preventDefault();
+        this.workcellScene.manualMovePlanar(0, stepSize);
+      } else if (e.key === 'PageDown' || e.code === 'KeyS') {
+        this.workcellScene.manualLower();
+      } else if (e.key === 'PageUp' || e.code === 'KeyW') {
+        this.workcellScene.manualRaise();
+      } else if (e.key === ' ' || e.key === 'Enter') {
+        e.preventDefault();
+        const res = this.workcellScene.manualToggleGrip();
+        if (res === 'placed') this.onTaskCompleted();
+        else if (res === 'dropped_recoverable' && this.manualHintText) {
+          this.manualHintText.textContent = i18n.t('task.misplaced');
+        }
+      }
     });
+
+    // Scroll Transition into Chapter 05: Moves camera closer
+    const scene05 = document.getElementById('scene-05');
+    if (scene05) {
+      window.addEventListener('scroll', () => {
+        const rect = scene05.getBoundingClientRect();
+        const windowH = window.innerHeight;
+        if (rect.top <= windowH * 0.5 && rect.bottom >= windowH * 0.2) {
+          this.workcellScene.setCameraCloserForTask();
+        }
+      }, { passive: true });
+    }
   }
 
   public setMode(mode: TaskMode) {
@@ -93,10 +174,16 @@ export class Scene05Task {
     if (dock) {
       dock.style.opacity = mode === 'manual' ? '1' : '0.6';
     }
+
+    if (this.btnPause) {
+      this.btnPause.style.display = mode === 'auto' ? 'inline-flex' : 'none';
+    }
   }
 
   public playAutoDemo() {
     if (this.completionBanner) this.completionBanner.hidden = true;
+    if (this.taskPauseLabel) this.taskPauseLabel.textContent = i18n.t('task.pause');
+    this.btnPause?.classList.remove('active');
     this.updateActiveStepCard(1);
 
     this.workcellScene.runAutoDemo(
@@ -112,6 +199,8 @@ export class Scene05Task {
   public resetTask() {
     this.workcellScene.resetTask();
     if (this.completionBanner) this.completionBanner.hidden = true;
+    if (this.taskPauseLabel) this.taskPauseLabel.textContent = i18n.t('task.pause');
+    this.btnPause?.classList.remove('active');
     this.updateActiveStepCard(1);
 
     if (this.btnAlign) this.btnAlign.disabled = false;
@@ -165,9 +254,24 @@ export class Scene05Task {
 
   private onTaskCompleted() {
     if (this.completionBanner) this.completionBanner.hidden = false;
-    // Notify underline in scene 6
+
+    // Connect recorded 3D trajectory to Scene 06 headline continuous underline
+    const points = this.workcellScene.env.getTrajectoryPoints();
     const underline = document.getElementById('contact-underline-path');
-    if (underline) {
+    if (underline && points.length > 2) {
+      const minX = Math.min(...points.map((p) => p.x));
+      const maxX = Math.max(...points.map((p) => p.x));
+      const rangeX = maxX - minX || 1;
+
+      const d = points
+        .map((p, i) => {
+          const sx = ((p.x - minX) / rangeX) * 800;
+          const sy = 12 + (p.y - 0.44) * 40;
+          return `${i === 0 ? 'M' : 'L'} ${sx.toFixed(1)} ${sy.toFixed(1)}`;
+        })
+        .join(' ');
+
+      underline.setAttribute('d', d);
       underline.style.strokeDasharray = 'none';
       underline.style.stroke = '#FF5000';
     }
@@ -192,4 +296,3 @@ export class Scene05Task {
     });
   }
 }
-

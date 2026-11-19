@@ -606,15 +606,15 @@
           </div>
 
           <div class="telemetry-block secondary-stat">
-            <div class="telemetry-label" data-i18n="routes.jitterLabel">PACKET STABILITY</div>
-            <div class="telemetry-metric">&plusmn;1.4 ms Jitter</div>
-            <div class="telemetry-sub" data-i18n="routes.packetSub">FEC &bull; UDP Tunnel &bull; Zero Drops</div>
+            <div class="telemetry-label" data-i18n="routes.routeTypeLabel">OPERATIONAL ROUTE</div>
+            <div class="telemetry-metric" data-i18n="routes.routeTypeVal">Direct Teleoperation Link</div>
+            <div class="telemetry-sub" data-i18n="routes.routeTypeSub">Illustrative Playback &bull; Operator to Remote Workcell</div>
           </div>
 
           <div class="telemetry-block hq-stat">
             <div class="telemetry-label" data-i18n="routes.hqLabel">GLOBAL HEADQUARTERS</div>
             <div class="hq-city">San Francisco, California</div>
-            <div class="telemetry-sub" data-i18n="routes.hqSub">Core Systems &bull; Separate ~180 ms Route</div>
+            <div class="telemetry-sub" data-i18n="routes.hqSub">Company Base &bull; Core Platform &amp; Engineering</div>
           </div>
         </div>
 
@@ -817,6 +817,14 @@
               </svg>
               <span data-i18n="workcell.resetView">Reset View</span>
             </button>
+
+            <button type="button" class="btn-subtle" id="btn-explore-view" aria-pressed="false" aria-label="Toggle camera drag exploration mode">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <circle cx="12" cy="12" r="10"/>
+                <path d="m10 15 5-3-5-3v6Z"/>
+              </svg>
+              <span id="explore-view-label" data-i18n="workcell.exploreView">Explore view</span>
+            </button>
           </div>
 
           <!-- Workspace Layers Toggle Panel -->
@@ -921,7 +929,7 @@
             </div>
 
             <div class="workcell-sim-tag" data-i18n="workcell.simTag">
-              ILLUSTRATIVE SIMULATION // RECONSTRUCTED WORKCELL
+              Illustrative workspace simulation
             </div>
           </div>
 
@@ -968,6 +976,14 @@
             </div>
 
             <div class="task-actions-right">
+              <button type="button" class="btn-subtle" id="btn-task-pause" aria-label="Pause or resume demo">
+                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <rect x="6" y="4" width="4" height="16"/>
+                  <rect x="14" y="4" width="4" height="16"/>
+                </svg>
+                <span id="task-pause-label" data-i18n="task.pause">Pause</span>
+              </button>
+
               <button type="button" class="btn-subtle" id="btn-task-reset" aria-label="Reset simulation workpiece and gripper">
                 <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                   <path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/>
@@ -1016,8 +1032,24 @@
           <div class="manual-control-dock" id="manual-control-dock">
             <div class="manual-instruction-banner">
               <span class="manual-hint" id="manual-hint-text" data-i18n="task.manualHint1">
-                Tap "Align over Piece" or use Arrow Keys to position the gripper.
+                Drag table cursor, use buttons below, or Arrow Keys to position gripper.
               </span>
+            </div>
+
+            <!-- Primary Direct Actions: Lower, Raise, Grip/Release -->
+            <div class="task-direct-actions">
+              <button type="button" class="btn-action-primary" id="btn-task-lower">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M12 5v14M19 12l-7 7-7-7"/></svg>
+                <span data-i18n="task.btnLower">Lower</span>
+              </button>
+              <button type="button" class="btn-action-primary" id="btn-task-raise">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M12 19V5M5 12l7-7 7 7"/></svg>
+                <span data-i18n="task.btnRaise">Raise</span>
+              </button>
+              <button type="button" class="btn-action-primary" id="btn-task-grip">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M7 11V7a5 5 0 0 1 10 0v4M6 11h12v10H6z"/></svg>
+                <span data-i18n="task.btnGrip">Grip / Release</span>
+              </button>
             </div>
 
             <div class="task-buttons-grid">
@@ -1040,6 +1072,11 @@
                 <span class="action-num">4</span>
                 <span data-i18n="task.btnRelease">Release Workpiece</span>
               </button>
+            </div>
+
+            <!-- Visible Keyboard Instructions Bar -->
+            <div class="keyboard-guide-bar" id="keyboard-guide-bar" data-i18n="task.keyboardGuide">
+              Keyboard: Arrow keys to move &bull; [Down]/[Up] to lower/raise &bull; [Space] to grip
             </div>
           </div>
 
@@ -1097,7 +1134,7 @@
           </div>
 
           <p class="contact-subtext" data-i18n="contact.subtext">
-            Whether piloting I2RT YAM arms across Mexico or deploying teleoperated fleets globally from our San Francisco headquarters, Aktoria connects human dexterity with industrial robotics anywhere on Earth.
+            Tell us about your teleoperation project.
           </p>
 
           <!-- Primary Call to Action -->
@@ -1117,6 +1154,58 @@
               </svg>
             </a>
           </div>
+
+          <!-- Staggered Contact Form Card (Revealed directly on scroll) -->
+          <div class="contact-inline-card" id="contact-form-card">
+            <form id="contact-inline-form" class="deployment-form inline-stagger-form">
+              <div class="form-row stagger-item" style="--stagger-idx: 1;">
+                <div class="form-group">
+                  <label for="contact-name" data-i18n="modal.fieldName">Name</label>
+                  <input type="text" id="contact-name" name="name" required placeholder="Elena Ramos" autocomplete="name" />
+                </div>
+                <div class="form-group">
+                  <label for="contact-email" data-i18n="modal.fieldEmail">Work Email</label>
+                  <input type="email" id="contact-email" name="email" required placeholder="elena@company.com" autocomplete="email" />
+                </div>
+              </div>
+
+              <div class="form-row stagger-item" style="--stagger-idx: 2;">
+                <div class="form-group">
+                  <label for="contact-company" data-i18n="modal.fieldCompany">Company</label>
+                  <input type="text" id="contact-company" name="company" required placeholder="Robotics Solutions Mexico" autocomplete="organization" />
+                </div>
+                <div class="form-group">
+                  <label for="contact-route" data-i18n="modal.fieldRoute">Primary Teleoperation Route</label>
+                  <select id="contact-route" name="route">
+                    <option value="ind-mex">India &rarr; Mexico (~125 ms)</option>
+                    <option value="ind-ind">Domestic India (~5 ms)</option>
+                    <option value="sf-global">San Francisco HQ &bull; Global Operations</option>
+                  </select>
+                </div>
+              </div>
+
+              <div class="form-group stagger-item" style="--stagger-idx: 3;">
+                <label for="contact-details" data-i18n="modal.fieldDetails">Project Details</label>
+                <textarea id="contact-details" name="details" rows="3" required placeholder="Describe payload, degrees of freedom, site constraints, or fleet goals..."></textarea>
+              </div>
+
+              <div class="form-actions stagger-item" style="--stagger-idx: 4;">
+                <button type="submit" class="btn-primary-submit" id="btn-inline-submit">
+                  <span class="submit-text" data-i18n="modal.btnSubmit">Discuss a deployment</span>
+                  <span class="submit-arrow">&rarr;</span>
+                </button>
+                <span class="direct-email-note">
+                  Direct verified dispatch: <a href="mailto:contact@aktoria.com" class="text-orange underline">contact@aktoria.com</a> &bull; San Francisco, CA
+                </span>
+              </div>
+            </form>
+
+            <div id="inline-success-banner" class="form-success-banner" hidden role="status" aria-live="polite">
+              <div class="success-icon">&check;</div>
+              <h4 data-i18n="modal.successTitle">Deployment Request Received</h4>
+              <p data-i18n="modal.successMsg">Our San Francisco systems engineering team will review your project parameters and schedule an operational architecture briefing within 24 hours.</p>
+            </div>
+          </div>
         </div>
 
         <!-- Deployment Modal / Inquiry Sheet -->
@@ -1134,28 +1223,33 @@
             <form id="deployment-form" class="deployment-form">
               <div class="form-row">
                 <div class="form-group">
-                  <label for="form-name" data-i18n="modal.fieldName">Full Name</label>
-                  <input type="text" id="form-name" required placeholder="Dr. Elena Ramos" />
+                  <label for="form-name" data-i18n="modal.fieldName">Name</label>
+                  <input type="text" id="form-name" name="name" required placeholder="Dr. Elena Ramos" />
                 </div>
                 <div class="form-group">
-                  <label for="form-company" data-i18n="modal.fieldCompany">Organization / Enterprise</label>
-                  <input type="text" id="form-company" required placeholder="Robotics Solutions Mexico" />
+                  <label for="form-email" data-i18n="modal.fieldEmail">Work Email</label>
+                  <input type="email" id="form-email" name="email" required placeholder="elena@company.com" />
                 </div>
               </div>
 
               <div class="form-row">
                 <div class="form-group">
-                  <label for="form-email" data-i18n="modal.fieldEmail">Work Email</label>
-                  <input type="email" id="form-email" required placeholder="elena@company.com" />
+                  <label for="form-company" data-i18n="modal.fieldCompany">Company</label>
+                  <input type="text" id="form-company" name="company" required placeholder="Robotics Solutions Mexico" />
                 </div>
                 <div class="form-group">
                   <label for="form-route" data-i18n="modal.fieldRoute">Primary Teleoperation Route</label>
-                  <select id="form-route">
+                  <select id="form-route" name="route">
                     <option value="ind-mex">India &rarr; Mexico (~125 ms)</option>
                     <option value="ind-ind">Domestic India (~5 ms)</option>
-                    <option value="sf-global">San Francisco &bull; Global Research (~180 ms)</option>
+                    <option value="sf-global">San Francisco HQ &bull; Global Operations</option>
                   </select>
                 </div>
+              </div>
+
+              <div class="form-group">
+                <label for="form-details" data-i18n="modal.fieldDetails">Project Details</label>
+                <textarea id="form-details" name="details" rows="3" required placeholder="Describe payload, degrees of freedom, site constraints, or fleet goals..."></textarea>
               </div>
 
               <div class="form-group">
@@ -1177,8 +1271,8 @@
               </div>
 
               <div class="form-actions">
-                <button type="submit" class="btn-primary-submit">
-                  <span data-i18n="modal.btnSubmit">Submit Deployment Request</span> &rarr;
+                <button type="submit" class="btn-primary-submit" id="btn-modal-submit">
+                  <span data-i18n="modal.btnSubmit">Discuss a deployment</span> &rarr;
                 </button>
                 <span class="direct-email-note">
                   Or direct inquiry: <a href="mailto:contact@aktoria.com" class="text-orange underline">contact@aktoria.com</a>
@@ -1186,10 +1280,10 @@
               </div>
             </form>
 
-            <div id="form-success-banner" class="form-success-banner" hidden>
+            <div id="form-success-banner" class="form-success-banner" hidden role="status" aria-live="polite">
               <div class="success-icon">&check;</div>
               <h4 data-i18n="modal.successTitle">Deployment Request Received</h4>
-              <p data-i18n="modal.successMsg">Our San Francisco systems engineering team will review your route parameters and schedule an operational architecture briefing within 24 hours.</p>
+              <p data-i18n="modal.successMsg">Our San Francisco systems engineering team will review your project parameters and schedule an operational architecture briefing within 24 hours.</p>
             </div>
           </div>
         </div>

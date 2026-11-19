@@ -8,6 +8,9 @@ export class Scene04Workspace {
   private sheetTitle: HTMLElement | null = null;
   private sheetTag: HTMLElement | null = null;
   private sheetBody: HTMLElement | null = null;
+  private btnExploreView: HTMLElement | null = null;
+  private exploreViewLabel: HTMLElement | null = null;
+  private lastFocusedTrigger: HTMLElement | null = null;
 
   constructor(workcellScene: WorkcellScene) {
     this.workcellScene = workcellScene;
@@ -15,13 +18,15 @@ export class Scene04Workspace {
     this.sheetTitle = document.getElementById('sheet-object-title');
     this.sheetTag = document.getElementById('sheet-object-tag');
     this.sheetBody = document.getElementById('sheet-object-body');
+    this.btnExploreView = document.getElementById('btn-explore-view');
+    this.exploreViewLabel = document.getElementById('explore-view-label');
 
     this.bindEvents();
   }
 
   private bindEvents() {
     // Camera Presets
-    document.querySelectorAll('.preset-btn').forEach((btn) => {
+    document.querySelectorAll('.preset-btn[data-preset]').forEach((btn) => {
       btn.addEventListener('click', (e) => {
         const preset = (e.currentTarget as HTMLElement).getAttribute('data-preset') as CameraPreset;
         if (preset) {
@@ -33,6 +38,28 @@ export class Scene04Workspace {
     // Reset View Button
     document.getElementById('btn-cam-reset')?.addEventListener('click', () => {
       this.workcellScene.resetCameraView();
+    });
+
+    // Explicit "Explore view" Button (prevents touch scroll conflicts on mobile)
+    this.btnExploreView?.addEventListener('click', () => {
+      const isCurrentlyActive = store.getState().exploreViewActive;
+      const nextActive = !isCurrentlyActive;
+      store.update((s) => {
+        s.exploreViewActive = nextActive;
+      });
+
+      this.btnExploreView?.classList.toggle('active', nextActive);
+      this.btnExploreView?.setAttribute('aria-pressed', nextActive ? 'true' : 'false');
+      if (this.exploreViewLabel) {
+        this.exploreViewLabel.textContent = nextActive
+          ? i18n.t('workcell.exitExplore')
+          : i18n.t('workcell.exploreView');
+      }
+
+      const canvasWrapper = document.getElementById('three-canvas-wrapper');
+      if (canvasWrapper) {
+        canvasWrapper.classList.toggle('explore-active', nextActive);
+      }
     });
 
     // Workspace Layers Toggles
@@ -59,7 +86,9 @@ export class Scene04Workspace {
     // Anchored 3D Label Clicks
     document.querySelectorAll('.anchor-label').forEach((labelBtn) => {
       labelBtn.addEventListener('click', (e) => {
-        const targetObj = (e.currentTarget as HTMLElement).getAttribute('data-target-object');
+        const currentTarget = e.currentTarget as HTMLElement;
+        this.lastFocusedTrigger = currentTarget;
+        const targetObj = currentTarget.getAttribute('data-target-object');
         if (targetObj) {
           this.openObjectExplanation(targetObj);
         }
@@ -68,7 +97,14 @@ export class Scene04Workspace {
 
     // Close Object Sheet
     document.getElementById('sheet-close-btn')?.addEventListener('click', () => {
-      if (this.objectSheet) this.objectSheet.hidden = true;
+      this.closeObjectExplanation();
+    });
+
+    // Escape Key support for Object Sheet
+    window.addEventListener('keydown', (e) => {
+      if (e.key === 'Escape' && this.objectSheet && !this.objectSheet.hidden) {
+        this.closeObjectExplanation();
+      }
     });
 
     // Update explanation sheet on language change
@@ -76,6 +112,12 @@ export class Scene04Workspace {
       const currentTarget = this.objectSheet?.getAttribute('data-active-target');
       if (currentTarget) {
         this.openObjectExplanation(currentTarget);
+      }
+      if (this.exploreViewLabel) {
+        const isExp = store.getState().exploreViewActive;
+        this.exploreViewLabel.textContent = isExp
+          ? i18n.t('workcell.exitExplore')
+          : i18n.t('workcell.exploreView');
       }
     });
   }
@@ -85,7 +127,7 @@ export class Scene04Workspace {
       s.selectedCamera = preset;
     });
 
-    document.querySelectorAll('.preset-btn').forEach((btn) => {
+    document.querySelectorAll('.preset-btn[data-preset]').forEach((btn) => {
       const isActive = btn.getAttribute('data-preset') === preset;
       btn.classList.toggle('active', isActive);
       btn.setAttribute('aria-pressed', isActive ? 'true' : 'false');
@@ -98,10 +140,26 @@ export class Scene04Workspace {
     if (!this.objectSheet) return;
     this.objectSheet.setAttribute('data-active-target', target);
     this.objectSheet.hidden = false;
+    this.objectSheet.classList.add('visible');
 
     if (this.sheetTag) this.sheetTag.textContent = i18n.t(`sheet.${target}.tag`);
     if (this.sheetTitle) this.sheetTitle.textContent = i18n.t(`sheet.${target}.title`);
     if (this.sheetBody) this.sheetBody.textContent = i18n.t(`sheet.${target}.desc`);
+
+    // Focus the close button for accessibility
+    const closeBtn = document.getElementById('sheet-close-btn');
+    closeBtn?.focus();
+  }
+
+  public closeObjectExplanation() {
+    if (!this.objectSheet) return;
+    this.objectSheet.classList.remove('visible');
+    this.objectSheet.hidden = true;
+
+    // Restore focus to triggering button
+    if (this.lastFocusedTrigger) {
+      this.lastFocusedTrigger.focus();
+      this.lastFocusedTrigger = null;
+    }
   }
 }
-
